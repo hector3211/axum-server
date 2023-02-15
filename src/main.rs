@@ -6,12 +6,27 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use std::net::SocketAddr;
+use diesel::{
+    prelude::*,
+    r2d2::{self, ConnectionManager},
+    PgConnection,
+};
+use dotenvy::dotenv;
+use std::env;
 
-#[derive(Clone)]
-struct State {}
+
+
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
+
+    let database_url = env::var("DATABASE_URL")
+        .expect("No DATABASE_URL provided!");
+    let manager = ConnectionManager::<PgConnection>::new(database_url);
+    let pool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create pool!");
 
     // build our application with a route
     let app = Router::new()
@@ -19,7 +34,8 @@ async fn main() {
         .route("/", get(root))
         // `POST /users` goes to `create_user`
         .route("/users", post(create_user))
-        .route("/users/:user_id/:user_name", get(user_info));
+        .route("/users/:user_id/:user_name", get(user_info))
+        .with_state(pool);
 
         
 
