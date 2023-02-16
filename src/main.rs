@@ -15,8 +15,6 @@ use dotenvy::dotenv;
 use std::env;
 
 
-
-
 #[tokio::main]
 async fn main() {
     dotenv().ok();
