@@ -2,19 +2,8 @@
 -- and other internal bookkeeping. This file is safe to edit, any future
 -- changes will be added to existing projects as new migrations.
 
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR NOT NULL,
-    email VARCHAR NOT NULL,
-    role VARCHAR NOT NULL,
-)
 
-CREATE TABLE todos (
-    id SERIAL PRIMARY KEY,
-    title VARCHAR NOT NULL,
-    description VARCHAR NOT NULL,
-    completed BOOLEAN DEFAULT FALSE,
-)
+
 
 -- Sets up a trigger for the given table to automatically set a column called
 -- `updated_at` whenever the row is modified (unless `updated_at` was included

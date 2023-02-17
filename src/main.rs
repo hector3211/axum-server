@@ -1,19 +1,24 @@
+pub mod models;
+pub mod schema;
 use axum::{
     routing::{get, post},
     http::StatusCode,
-    Json, Router, extract::Path,
+    Json, Router, extract::{Path, State},
 };
+use models::{User, NewUser};
+use schema::users;
 use serde::{Deserialize, Serialize};
 
 use std::net::SocketAddr;
 use diesel::{
-    prelude::*,
     r2d2::{self, ConnectionManager},
     PgConnection,
 };
+use diesel::prelude::*;
 use dotenvy::dotenv;
 use std::env;
 
+pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
 #[tokio::main]
 async fn main() {
@@ -44,6 +49,26 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
+}
+
+async fn create_user_db(
+    Path((user_name,user_pw)): Path<(String,String)>,
+    State(pool): State<DbPool>
+) -> Result<StatusCode,StatusCode> {
+    use crate::schema::users::dsl::*;
+    let new_user = NewUser {
+        username: &user_name,
+        hashed_password: &user_pw,
+    };
+    diesel::insert_into(users)
+        .values(&new_user)
+        .execute(&mut pool)
+        .expect("Error creating user");
+
+    Ok(StatusCode::OK)
+
+
+
 }
 
 #[derive(Deserialize,Serialize)]
