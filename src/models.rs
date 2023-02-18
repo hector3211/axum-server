@@ -1,15 +1,16 @@
 use serde::{Deserialize, Serialize};
 use diesel::prelude::*;
 use crate::schema::{todos,users};
+use chrono::NaiveDateTime;
 
-
-#[derive(Debug,Identifiable,Queryable,Deserialize,Serialize,Clone)]
+#[derive(Debug,Queryable,Deserialize,Identifiable,Serialize,Clone)]
 #[diesel(table_name = users)]
 pub struct User {
     pub id: i32,
     pub username: String,
-    pub password: String,
+    pub hashed_password: String,
 }
+
 
 #[derive(Insertable, Serialize, Clone)]
 #[diesel(table_name = users)]
@@ -37,4 +38,11 @@ pub struct NewTodo<'a> {
     pub title: &'a str,
     pub body: &'a str,
     pub completed: &'a bool,
+}
+
+
+#[derive(Debug,Serialize,Deserialize,Clone)]
+pub struct Res {
+    pub message: String,
+    pub status: i32,
 }

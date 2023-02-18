@@ -3,22 +3,18 @@
 diesel::table! {
     todos (id) {
         id -> Int4,
-        title -> Text,
-        body -> Text,
+        title -> Varchar,
+        body -> Varchar,
         completed -> Bool,
         user_id -> Int4,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
     }
 }
 
 diesel::table! {
     users (id) {
         id -> Int4,
-        username -> Text,
-        hashed_password -> Text,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
+        username -> Varchar,
+        hashed_password -> Varchar,
     }
 }
 

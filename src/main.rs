@@ -1,21 +1,28 @@
+extern crate diesel;
+pub mod actions;
 pub mod models;
 pub mod schema;
 use axum::{
     routing::{get, post},
-    http::StatusCode,
-    Json, Router, extract::{Path, State},
+    http::StatusCode, Router, extract::{Path, State}, response::IntoResponse, Json,
 };
-use models::{User, NewUser};
-use serde::{Deserialize, Serialize};
+use models::{User, Res};
+
+
 
 use std::net::SocketAddr;
 use diesel::{
     r2d2::{self, ConnectionManager},
     PgConnection,
 };
-use diesel::prelude::*;
 use dotenvy::dotenv;
 use std::env;
+
+// #[derive()]
+// struct AppState {
+//     db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
+//
+// }
 
 pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -30,17 +37,16 @@ async fn main() {
         .build(manager)
         .expect("Failed to create pool!");
 
+    // let app_state = AppState {
+    //     db_pool: pool,
+    // };
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
-        .route("/", get(root))
         // `POST /users` goes to `create_user`
-        // .route("/users", post(create_user))
-        // .route("/users/:user_id/:user_name", get(user_info))
-        .route("/users/:user_name/:user_pw", post(create_user_db))
-        .with_state(pool);
-
-        
+        .route("/", get(get_user))
+        .route("/user/:user_name/:user_pw", post(create_user))
+        .with_state(pool.clone());
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
@@ -51,74 +57,52 @@ async fn main() {
         .unwrap();
 }
 
-async fn create_user_db(
+async fn get_user(
+    State(state): State<DbPool>
+) -> Result<Json<Vec<User>>,StatusCode> {
+
+    let users = tokio::task::spawn_blocking(move ||{
+        let mut conn = state.get()?;
+        actions::get_users(&mut conn)
+    })
+    .await
+    .unwrap();
+
+    if let Ok(users) = users {
+        Ok(Json(users))
+    } else {
+        Err(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+
+}
+
+
+async fn create_user(
     Path((user_name,user_pw)): Path<(String,String)>,
-    State(pool): State<DbPool>
-) -> Result<StatusCode,StatusCode> {
-    let mut conn = pool.get().unwrap();
-    use crate::schema::users::dsl::*;
-    let new_user = NewUser {
-        username: &user_name,
-        hashed_password: &user_pw,
-    };
-    diesel::insert_into(users)
-        .values(&new_user)
-        .execute(&mut conn)
-        .expect("Error creating user");
+    State(state): State<DbPool>
+) -> Result<impl IntoResponse,StatusCode> {
 
-    Ok(StatusCode::OK)
+    let insert = tokio::task::spawn_blocking(move || {
+        let mut conn = state.get()?;
+        actions::create_user(&mut conn, user_name, user_pw)
+    })
+    .await
+    .unwrap();
+
+    if let Ok(insert) = insert {
+        let message = Res {
+            message: "Successfully made a new user!".to_string(),
+            status: 200,
+        };
+        Ok((StatusCode::OK,Json(message)))
+    } else {
+        let message = Res {
+            message: "Error creating new user".to_string(),
+            status: 404,
+        };
+        Ok((StatusCode::BAD_REQUEST,Json(message)))
+    }
+
 }
 
 
-// #[derive(Deserialize,Serialize)]
-// struct SayName {
-//     id: i32,
-//     name: String,
-// }
-
-// async fn user_info(
-//     Path((user_id,user_name)): Path<(i32,String)>
-// ) -> Result<Json<SayName>, StatusCode> {
-//     let user = SayName {
-//         id: user_id,
-//         name: user_name,
-//     };
-//
-//     Ok(Json(user))
-// }
-//
-//
-// basic handler that responds with a static string
-async fn root() -> &'static str {
-    "Hello, World!"
-}
-
-// async fn create_user(
-//     // this argument tells axum to parse the request body
-//     // as JSON into a `CreateUser` type
-//     Json(payload): Json<CreateUser>,
-// ) -> (StatusCode, Json<User>) {
-//     // insert your application logic here
-//     let user = User {
-//         id: 1337,
-//         username: payload.username,
-//     };
-//
-//     // this will be converted into a JSON response
-//     // with a status code of `201 Created`
-//     (StatusCode::CREATED, Json(user))
-// }
-//
-//
-// // the input to our `create_user` handler
-// #[derive(Deserialize)]
-// struct CreateUser {
-//     username: String,
-// }
-//
-// // the output to our `create_user` handler
-// #[derive(Serialize)]
-// struct User {
-//     id: u64,
-//     username: String,
-// }
