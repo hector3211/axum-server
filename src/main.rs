@@ -7,9 +7,6 @@ use axum::{
     http::StatusCode, Router, extract::{Path, State}, response::IntoResponse, Json,
 };
 use models::{User, Res};
-
-
-
 use std::net::SocketAddr;
 use diesel::{
     r2d2::{self, ConnectionManager},
@@ -18,18 +15,12 @@ use diesel::{
 use dotenvy::dotenv;
 use std::env;
 
-// #[derive()]
-// struct AppState {
-//     db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
-//
-// }
 
 pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-
     let database_url = env::var("DATABASE_URL")
         .expect("No DATABASE_URL provided!");
     let manager = ConnectionManager::<PgConnection>::new(database_url);
@@ -37,16 +28,12 @@ async fn main() {
         .build(manager)
         .expect("Failed to create pool!");
 
-    // let app_state = AppState {
-    //     db_pool: pool,
-    // };
-    // build our application with a route
+
     let app = Router::new()
-        // `GET /` goes to `root`
-        // `POST /users` goes to `create_user`
         .route("/", get(get_user))
         .route("/user/:user_name/:user_pw", post(create_user))
         .with_state(pool.clone());
+
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
@@ -102,7 +89,6 @@ async fn create_user(
         };
         Ok((StatusCode::BAD_REQUEST,Json(message)))
     }
-
 }
 
 
