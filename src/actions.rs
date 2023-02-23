@@ -50,17 +50,17 @@ pub fn update_user_info(
     user_pw: String,
     user_id: i32,
     conn: &mut PgConnection
-) -> Result<(), DbError> {
+) -> Result<User, DbError> {
     use crate::schema::users::dsl::*;
-    diesel::update(users.filter(id.eq(user_id)))
+    let result = diesel::update(users.filter(id.eq(user_id)))
         .set((
             username.eq(user_name),
             hashed_password.eq(user_pw)
         ))
-        .execute(conn)
+        .get_result(conn)
         .expect("Error updating user");
 
-        Ok(())
+        Ok(result)
 }
 //
 //

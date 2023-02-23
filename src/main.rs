@@ -3,12 +3,11 @@ pub mod actions;
 pub mod models;
 pub mod schema;
 use axum::{
-    routing::{get, post},
+    routing::{get, post,put,delete},
     http::StatusCode, Router, extract::{Path, State}, response::IntoResponse, Json,
 };
-use models::{User, Res};
-use tracing::{debug_span, info_span, info, warn, instrument};
-use tracing_subscriber::field::debug;
+use models::User;
+use tracing::{info, warn, instrument};
 use std::net::SocketAddr;
 use diesel::{
     r2d2::{self, ConnectionManager},
@@ -16,7 +15,6 @@ use diesel::{
 };
 use dotenvy::dotenv;
 use std::env;
-use tracing_futures::Instrument;
 
 
 pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
@@ -38,8 +36,10 @@ async fn main() {
 
     let app = Router::new()
         .route("/test", get(async_test))
-        .route("/", get(get_user))
-        .route("/user/:user_name/:user_pw", post(create_user))
+        .route("/users", get(get_users))
+        .route("/users/:user_name/:user_pw", post(create_user))
+        .route("/users/:user_name/:user_pw/:user_id", put(update_user))
+        .route("/users/user/:user_id", delete(delete_user))
         .with_state(pool.clone());
 
 
@@ -62,11 +62,11 @@ async fn async_test() -> &'static str {
 }
 
 #[instrument]
-async fn get_user(
+async fn get_users(
     State(state): State<DbPool>
 ) -> Result<Json<Vec<User>>,StatusCode> {
 
-    info!("Started Tokio async");
+    info!("Started Tokio async for get_users");
     let users = tokio::task::spawn_blocking(move ||{
         let mut conn = state.get()?;
         actions::get_users(&mut conn)
@@ -83,21 +83,55 @@ async fn get_user(
 
 }
 
-
 #[instrument]
 async fn create_user(
     Path((user_name,user_pw)): Path<(String,String)>,
     State(state): State<DbPool>
 ) -> Result<(StatusCode,Json<User>),StatusCode> {
 
+    info!("Started Tokio async for create_user");
     let new_user = tokio::task::spawn_blocking(move || {
         let mut conn = state.get()?;
         actions::create_user(&mut conn, user_name, user_pw)
     })
     .await
     .unwrap();
+    warn!("Ended Tokio async for create_user");
 
     Ok((StatusCode::OK,Json(new_user.ok().unwrap())))
 }
 
+#[instrument]
+async fn update_user(
+    Path((user_name,user_pw,user_id)): Path<(String,String,i32)>,
+    State(state): State<DbPool>
+) -> Result<(StatusCode, Json<User>), StatusCode> {
+    info!("Started Tokio async for update_user");
+    let update_user = tokio::task::spawn_blocking(move || {
+        let mut conn = state.get()?;
+        actions::update_user_info(user_name, user_pw, user_id, &mut conn)
+    })
+    .await
+    .unwrap();
+    warn!("Ended Tokio async for update_user");
+
+    Ok((StatusCode::OK,Json(update_user.ok().unwrap())))
+}
+
+#[instrument]
+async fn delete_user(
+    Path(user_id): Path<i32>,
+    State(state): State<DbPool>
+) -> Result<StatusCode,StatusCode> {
+    info!("Started Tokio async for delete_user");
+    let _deleted_user = tokio::task::spawn_blocking(move || {
+        let mut conn = state.get()?;
+        actions::delete_user(user_id, &mut conn)
+    })
+    .await
+    .unwrap();
+    warn!("Ended Tokio async for delete_user");
+
+    Ok(StatusCode::OK)
+}
 
