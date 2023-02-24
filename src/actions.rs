@@ -1,5 +1,10 @@
-use diesel::{prelude::*, helper_types::FindBy};
-use crate::{models::{User,NewUser,Todo,NewTodo}, schema::users};
+use diesel::prelude::*;
+use diesel::BelongingToDsl;
+
+use crate::models::NewTodo;
+use crate::models::{User,NewUser,Todo};
+use crate::schema::todos;
+use crate::schema::users;
 use diesel::PgConnection;
 
 pub type DbError = Box<dyn std::error::Error + Send + Sync>;
@@ -65,11 +70,67 @@ pub fn update_user_info(
 //
 //
 //
+//
+// Get todos
+pub fn get_todos(conn: &mut PgConnection) -> Result<Vec<Todo>, DbError> {
+    use crate::schema::todos::dsl::*;
 
-// Get Todos
+    let data: Vec<Todo> = todos
+        .get_results(conn)
+        .expect("Error loading all todos!");
+
+    Ok(data)
+    
+}
+
+// Get Todos by user ID
+pub fn get_todos_by_user(
+    user_id: i32,
+    conn: &mut PgConnection
+) -> Result<Vec<Todo>,DbError> {
+
+    let current_user:User = users::table
+        .filter(users::id.eq(user_id))
+        .select(User::as_select())
+        .get_result(conn)?;
+
+
+    let todos_for_user: Vec<Todo> = todos::table
+        .filter(todos::user_id.eq(current_user.id))
+        .select(Todo::as_select())
+        .get_results(conn)?;
+
+
+    Ok(todos_for_user)
+
+}
 //
 //
 // Create Todo
+pub fn create_todo_for_user(
+    todo_title: String,
+    todo_body: String,
+    todo_completed: bool,
+    the_user_id: i32,
+    conn: &mut PgConnection
+) -> Result<Vec<Todo>,DbError> {
+    use crate::schema::todos::dsl::*;
+
+    let new_todo =  NewTodo {
+        title: &todo_title,
+        body: &todo_body,
+        completed: &todo_completed,
+        user_id: &the_user_id,
+    };
+
+    let data: Vec<Todo> = diesel::insert_into(todos)
+        .values(&new_todo)
+        .get_results(conn)
+        .expect("Error creating new Todo!");
+
+
+    Ok(data)
+}
 //
 // Delete Todo
 //

@@ -4,9 +4,9 @@ pub mod models;
 pub mod schema;
 use axum::{
     routing::{get, post,put,delete},
-    http::StatusCode, Router, extract::{Path, State}, response::IntoResponse, Json,
+    http::StatusCode, Router, extract::{Path, State}, Json,
 };
-use models::User;
+use models::{User, Todo};
 use tracing::{info, warn, instrument};
 use std::net::SocketAddr;
 use diesel::{
@@ -40,6 +40,8 @@ async fn main() {
         .route("/users/:user_name/:user_pw", post(create_user))
         .route("/users/:user_name/:user_pw/:user_id", put(update_user))
         .route("/users/user/:user_id", delete(delete_user))
+        .route("/todos", get(get_todos))
+        .route("/todos/:todo_title/:todo_body/:todo_completed/:the_user_id", post(create_user_todo))
         .with_state(pool.clone());
 
 
@@ -133,5 +135,39 @@ async fn delete_user(
     warn!("Ended Tokio async for delete_user");
 
     Ok(StatusCode::OK)
+}
+
+#[instrument]
+async fn get_todos(
+    State(state): State<DbPool>
+) -> Result<Json<Vec<Todo>>,StatusCode> {
+    info!("Started Tokio async for getting all todos!");
+    let all_todos = tokio::task::spawn_blocking(move || {
+        let mut conn = state.get()?;
+        actions::get_todos(&mut conn)
+    })
+    .await
+    .unwrap();
+    warn!("Ended Tokio async fo getting all todos!");
+
+    Ok(Json(all_todos.ok().unwrap()))
+}
+
+#[instrument]
+async fn create_user_todo(
+    Path((todo_title,todo_body,todo_completed,the_user_id)): Path<(String,String,bool,i32)>,
+    State(state): State<DbPool>
+) -> Result<Json<Vec<Todo>>,StatusCode> {
+    info!("User Todo async fn started!");
+    let todos = tokio::task::spawn_blocking(move || {
+        let mut conn = state.get()?;
+        actions::create_todo_for_user(todo_title,todo_body,todo_completed,the_user_id,&mut conn)
+    })
+    .await
+    .unwrap();
+    warn!("User Todo async fn ended!");
+
+    
+    Ok(Json(todos.ok().unwrap()))
 }
 

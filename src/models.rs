@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use diesel::prelude::*;
+use diesel::sql_types::{Bool};
 use crate::schema::{todos,users};
-use chrono::NaiveDateTime;
 
-#[derive(Debug,Queryable,Deserialize,Identifiable,Serialize,Clone)]
+#[derive(Debug,Selectable,Queryable,Deserialize,Identifiable,Serialize,Clone,PartialEq)]
 #[diesel(table_name = users)]
 pub struct User {
     pub id: i32,
@@ -20,13 +20,24 @@ pub struct NewUser<'a> {
 }
 
 
-#[derive(Debug,Identifiable,Queryable,Associations,Deserialize,Serialize,Clone)]
+#[derive(
+    Debug,
+    Selectable,
+    Identifiable,
+    Queryable,
+    Associations,
+    Deserialize,
+    Serialize,
+    Clone,
+    PartialEq,
+)]
 #[diesel(belongs_to(User))]
 #[diesel(table_name = todos)]
 pub struct Todo {
     pub id: i32,
     pub title: String,
     pub body: String,
+    pub completed: bool,
     pub user_id: i32,
 }
 
@@ -38,6 +49,7 @@ pub struct NewTodo<'a> {
     pub title: &'a str,
     pub body: &'a str,
     pub completed: &'a bool,
+    pub user_id: &'a i32,
 }
 
 
