@@ -1,9 +1,17 @@
 use serde::{Deserialize, Serialize};
 use diesel::prelude::*;
-use diesel::sql_types::{Bool};
 use crate::schema::{todos,users};
 
-#[derive(Debug,Selectable,Queryable,Deserialize,Identifiable,Serialize,Clone,PartialEq)]
+#[derive(
+    Debug,
+    Selectable,
+    Queryable,
+    Deserialize,
+    Identifiable,
+    Serialize,
+    Clone,
+    PartialEq,
+)]
 #[diesel(table_name = users)]
 pub struct User {
     pub id: i32,
@@ -57,4 +65,11 @@ pub struct NewTodo<'a> {
 pub struct Res {
     pub message: String,
     pub status: i32,
+}
+
+#[derive(Serialize)]
+pub struct UsersWithTodos {
+    #[serde(flatten)]
+    pub user: User,
+    pub todos: Vec<Todo>,
 }

@@ -6,7 +6,7 @@ use axum::{
     routing::{get, post,put,delete},
     http::StatusCode, Router, extract::{Path, State}, Json,
 };
-use models::{User, Todo};
+use models::{User, Todo, UsersWithTodos};
 use tracing::{info, warn, instrument};
 use std::net::SocketAddr;
 use diesel::{
@@ -42,6 +42,7 @@ async fn main() {
         .route("/users/user/:user_id", delete(delete_user))
         .route("/todos", get(get_todos))
         .route("/todos/:todo_title/:todo_body/:todo_completed/:the_user_id", post(create_user_todo))
+        .route("/user/todos", get(all_users_with_todos))
         .with_state(pool.clone());
 
 
@@ -55,6 +56,19 @@ async fn main() {
         .unwrap();
 }
 
+async fn all_users_with_todos(
+    State(state): State<DbPool>
+) -> Result<Json<Vec<UsersWithTodos>>,StatusCode> {
+    let data = tokio::task::spawn_blocking(move || {
+        let mut conn = state.get()?;
+        actions::get_users_todos(&mut conn)
+    })
+    .await
+    .unwrap();
+
+    Ok(Json(data.ok().unwrap()))
+}
+
 async fn async_test() -> &'static str {
     info!("handling request");
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -62,6 +76,7 @@ async fn async_test() -> &'static str {
 
     "hello world"
 }
+
 
 #[instrument]
 async fn get_users(

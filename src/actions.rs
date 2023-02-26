@@ -1,7 +1,8 @@
 use diesel::prelude::*;
-use diesel::BelongingToDsl;
+
 
 use crate::models::NewTodo;
+use crate::models::UsersWithTodos;
 use crate::models::{User,NewUser,Todo};
 use crate::schema::todos;
 use crate::schema::users;
@@ -10,6 +11,7 @@ use diesel::PgConnection;
 pub type DbError = Box<dyn std::error::Error + Send + Sync>;
 
 
+// Get users
 pub fn get_users(conn: &mut PgConnection) -> Result<Vec<User>,DbError> {
     use crate::schema::users::dsl::*;
     let data:Vec<User> = users
@@ -18,6 +20,7 @@ pub fn get_users(conn: &mut PgConnection) -> Result<Vec<User>,DbError> {
     Ok(data)
 }
 
+// Create user
 pub fn create_user(
     conn: &mut PgConnection,
     name:String,
@@ -81,6 +84,30 @@ pub fn get_todos(conn: &mut PgConnection) -> Result<Vec<Todo>, DbError> {
 
     Ok(data)
     
+}
+
+
+// Get users and todos 
+pub fn get_users_todos (
+    conn: &mut PgConnection
+) -> Result<Vec<UsersWithTodos>,DbError> {
+    use crate::schema::users::dsl::*;
+
+    let all_users = users
+        .order(id)
+        .load::<User>(conn)
+        .expect("Error loading Users")
+        .into_iter()
+        .map(|user: User| {
+            let todos = todos::table
+            .filter(todos::user_id.eq(user.id))
+            .load::<Todo>(conn)
+            .expect("Error loading todos!");
+            UsersWithTodos { user,todos}
+        })
+        .collect::<Vec<UsersWithTodos>>();
+
+    Ok(all_users)
 }
 
 // Get Todos by user ID
