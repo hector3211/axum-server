@@ -103,7 +103,7 @@ pub fn get_users_todos (
             .filter(todos::user_id.eq(user.id))
             .load::<Todo>(conn)
             .expect("Error loading todos!");
-            UsersWithTodos { user,todos}
+            return UsersWithTodos { user,todos};
         })
         .collect::<Vec<UsersWithTodos>>();
 
